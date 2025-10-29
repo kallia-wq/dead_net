@@ -1,0 +1,228 @@
+<!-- FILE: overload.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Overload — Chaos Bursts</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="assets/css/chaos.css" />
+
+  <style>
+    :root{
+      --shard-min: 9;      /* min grid tiles (cols*rows) */
+      --shard-max: 20;     /* max grid tiles */
+      --blast-ms: 1400;    /* flight time */
+      --linger: 220;       /* extra before cleanup */
+    }
+
+    /* Control bar */
+    .status{position:sticky;top:0;margin:12px 14px;padding:8px 12px;border:1px solid var(--line);
+      border-radius:10px;background:#050505;color:#bdf;font-size:.85rem;display:flex;gap:8px;align-items:center;z-index:5}
+    .status .btn{padding:6px 10px;border-radius:10px}
+    .status .dot{width:10px;height:10px;border-radius:50%;background:#444}
+    .status.running .dot{background:#0f0}
+
+    /* Fullscreen burst stage */
+    .burst-stage{position:fixed;inset:0;overflow:visible;pointer-events:none;contain:layout paint;z-index:50}
+
+    .shard{
+      position:absolute;will-change:transform,opacity,filter;
+      background-size:100% 100%;background-repeat:no-repeat;
+      transform-origin:center;box-shadow:0 2px 8px rgba(0,0,0,.45)
+    }
+
+    @keyframes preShake{
+      0%,100%{transform:translate(0,0) rotate(0)}
+      50%{transform:translate(.6px,-.6px) rotate(.2deg)}
+    }
+    @keyframes blow{
+      0%{opacity:1;transform:translate(0,0) rotate(0) scale(1);filter:saturate(1)}
+      70%{opacity:1;transform:translate(var(--tx),var(--ty)) rotate(var(--rot)) scale(.98)}
+      100%{opacity:0;transform:translate(calc(var(--tx)*1.2),calc(var(--ty)*1.2)) rotate(calc(var(--rot)*1.2)) scale(.92);filter:saturate(.9) blur(.6px)}
+    }
+    @media (prefers-reduced-motion: reduce){
+      .shard{animation:none !important;transition:opacity .6s ease}
+    }
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <a class="brand" href="index.html">COPYCAT™</a>
+  <nav class="site-nav">
+    <a href="overload.html" aria-current="page">Overload</a>
+    <a href="bots.html">Bots</a>
+    <a href="recompile.html">Recompile</a>
+    <a href="corpse.html">Corpse</a>
+    <a href="errors.html">Errors</a>
+  </nav>
+</header>
+<div class="layer scanlines" aria-hidden="true"></div>
+<div class="overlay" aria-hidden="true"></div>
+
+<main>
+  <div id="ctrl" class="status mono">
+    <span class="dot" aria-hidden="true"></span>
+    <span id="stat">loading…</span>
+    <button id="start" class="btn neon-g">Start</button>
+    <button id="stop" class="btn">Stop</button>
+    <button id="burst" class="btn">Burst ×3</button>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="site-header"><span class="mono">If reality won’t shatter on its own, we help.</span></div>
+</footer>
+
+<!-- Inline manifest (edit paths if your files aren’t actually here) -->
+<script id="manifest" type="application/json">
+{
+  "media": [
+    "assets/media/items/10.jpg",
+    "assets/media/items/20.jpg",
+    "assets/media/items/80.jpg",
+    "assets/media/items/110.jpg",
+    "assets/media/items/120.jpg",
+    "assets/media/items/140.jpg",
+    "assets/media/items/150.jpg",
+    "assets/media/items/160.jpg",
+    "assets/media/items/170.jpg",
+    "assets/media/items/200.jpg",
+    "assets/media/items/210.jpg",
+    "assets/media/items/220.jpg",
+    "assets/media/items/230.jpg",
+    "assets/media/items/240.jpg",
+    "assets/media/items/250.jpg",
+    "assets/media/items/260.jpg",
+    "assets/media/items/300.jpg",
+    "assets/media/items/360.jpg"
+  ]
+}
+</script>
+
+<script>
+(async function(){
+  const ctrl = document.getElementById('ctrl');
+  const stat = document.getElementById('stat');
+  const btnStart = document.getElementById('start');
+  const btnStop  = document.getElementById('stop');
+  const btnBurst = document.getElementById('burst');
+
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const R = Math.random, rand=(a,b)=>a+R()*(b-a), pick=a=>a[(R()*a.length)|0];
+
+  // --- Load images from manifest (inline → external fallbacks) ---
+  function fromInline(){
+    try{ const j = JSON.parse(document.getElementById('manifest')?.textContent||'{}'); return Array.isArray(j.media)?j.media:[] }
+    catch{ return [] }
+  }
+  async function fromJSON(path){
+    try{ const r=await fetch(path,{cache:'no-store'}); if(!r.ok) return []; const j=await r.json(); return Array.isArray(j.media)?j.media:[] }catch{ return [] }
+  }
+  function verify(src){
+    return new Promise(res=>{
+      const i=new Image(); const t=setTimeout(()=>done(null),1200);
+      function done(ok){clearTimeout(t); i.onload=i.onerror=null; res(ok?src:null)}
+      i.onload=()=>done(true); i.onerror=()=>done(null);
+      i.referrerPolicy='no-referrer'; i.src=src+'?v='+Math.random();
+    });
+  }
+
+  let media = fromInline();
+  if (!media.length) media = await fromJSON('assets/media/manifest2.json');
+  if (!media.length) media = await fromJSON('assets/media/manifest.json');
+  media = media.filter(s => /\.(jpe?g|png|gif)$/i.test(s));
+
+  const verified = [];
+  for (const m of media){ const v = await verify(m); if (v) verified.push(v); }
+  if (!verified.length){ stat.textContent='No images resolved. Check paths.'; return; }
+
+  // --- Shard burst ---
+  function spawnBurst(){
+    const src = pick(verified);
+    const stage = document.createElement('div');
+    stage.className = 'burst-stage';
+    document.body.appendChild(stage);
+
+    const vw = stage.clientWidth, vh = stage.clientHeight;
+
+    const tiles = Math.round(rand(
+      parseInt(getComputedStyle(document.documentElement).getPropertyValue('--shard-min'))||9,
+      parseInt(getComputedStyle(document.documentElement).getPropertyValue('--shard-max'))||20
+    ));
+    const cols = Math.max(3, Math.round(Math.sqrt(tiles) + rand(-1, 2)));
+    const rows = Math.max(3, Math.round(tiles / cols));
+
+    const sw = Math.ceil(vw / cols), sh = Math.ceil(vh / rows);
+    const preMs = reduce ? 0 : 140;
+    const blastMs = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--blast-ms'))||1400;
+    const linger  = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--linger'))||220;
+
+    for (let y=0;y<rows;y++){
+      for (let x=0;x<cols;x++){
+        const shard = document.createElement('div');
+        shard.className = 'shard';
+        shard.style.left = (x*sw)+'px';
+        shard.style.top  = (y*sh)+'px';
+        shard.style.width  = sw+'px';
+        shard.style.height = sh+'px';
+        shard.style.backgroundImage = `url("${src}")`;
+        shard.style.backgroundPosition = `${(-x*sw)}px ${(-y*sh)}px`;
+
+        // random trajectory
+        const tx = rand(-vw*0.35, vw*0.35);
+        const ty = rand(-vh*0.45, vh*0.55);
+        const rot = rand(-40, 40) + 'deg';
+        const delay = reduce ? 0 : Math.floor(rand(0, 160));
+
+        shard.style.setProperty('--tx', tx+'px');
+        shard.style.setProperty('--ty', ty+'px');
+        shard.style.setProperty('--rot', rot);
+
+        if (!reduce){
+          shard.style.animation =
+            `preShake ${preMs}ms ease ${delay}ms 1 both, ` +
+            `blow ${blastMs}ms cubic-bezier(.2,.8,.2,1) ${preMs+delay}ms 1 both`;
+        } else {
+          shard.style.opacity = '.85';
+        }
+
+        stage.appendChild(shard);
+      }
+    }
+
+    setTimeout(()=> stage.remove(), preMs + blastMs + linger + 200);
+  }
+
+  // --- Loop controls ---
+  let running=false, timer=null;
+  function start(){
+    if (running) return;
+    running=true; ctrl.classList.add('running'); stat.textContent='running';
+    const tick=()=>{
+      if (!running) return;
+      const bursts = Math.random()<0.22 ? 2 : 1;
+      for (let i=0;i<bursts;i++) setTimeout(spawnBurst, i*180);
+      timer=setTimeout(tick, reduce ? 2600 : Math.round(rand(1600, 3500)));
+    };
+    tick();
+  }
+  function stop(){
+    running=false; ctrl.classList.remove('running'); stat.textContent='stopped';
+    clearTimeout(timer); timer=null;
+  }
+
+  btnStart.addEventListener('click', start);
+  btnStop .addEventListener('click', stop);
+  btnBurst.addEventListener('click', ()=> { for (let i=0;i<3;i++) setTimeout(spawnBurst, i*160); });
+
+  // First taste
+  spawnBurst();
+  stat.textContent = `ready · ${verified.length} images`;
+})();
+</script>
+
+<script src="assets/js/chaos.js"></script>
+<script src="assets/js/chat.js"></script>
+</body>
+</html>

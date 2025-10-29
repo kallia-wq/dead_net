@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Remix — Cut-Up Engine</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="assets/css/chaos.css" />
+  <style>
+    /* ===== metadata-driven mutant tiles ===== */
+    .mutant {
+      --mood: .5;
+      --tempo: 1.5;
+      --hue: 180;
+      --ratio: 1;
+      position: relative;
+      border-radius: 10px;
+      overflow: hidden;
+      aspect-ratio: var(--ratio);
+      border: 1px solid hsl(var(--hue), 70%, 50%);
+      box-shadow: 0 0 calc(8px * var(--mood)) hsl(var(--hue), 80%, 60%, 0.35);
+      animation: mutant-pulse calc(5s / var(--tempo)) ease-in-out infinite alternate;
+      transition: transform 0.3s ease, filter 0.3s ease;
+      background: linear-gradient(135deg, var(--p0, #1b1b1b), var(--p1, #2a2a2a) 45%, var(--p2, #444) 60%, var(--p3, #666) 80%, var(--p4, #888));
+    }
+    .mutant:hover { transform: scale(1.03); filter: brightness(1.08) saturate(1.1); }
+    .mutant .media-el {
+      width: 100%; height: 100%; object-fit: cover;
+      animation: mutant-wobble 6s ease-in-out infinite;
+      filter: hue-rotate(var(--hue, 0deg)) saturate(calc(1 + var(--mood)));
+    }
+    .mutant .cap {
+      position: absolute; left: 6px; bottom: 6px;
+      background: rgba(0,0,0,.55); padding: 2px 6px; border-radius: 8px;
+    }
+    .mutant-focus { outline: 2px solid var(--p2, #58f); outline-offset: -2px; }
+
+    /* theme headers (for grouped view) */
+    .theme-header {
+      grid-column: 1 / -1;
+      padding: 6px 10px; margin-top: 10px;
+      border: 1px dashed var(--line); border-radius: 10px;
+      color: #bdf; background: #070707;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    /* animations */
+    @keyframes mutant-pulse {
+      0%   { transform: scale(1) rotate(0deg); filter: brightness(0.95); }
+      100% { transform: scale(calc(1 + (var(--mood) * 0.12))) rotate(1.5deg); filter: brightness(1.05); }
+    }
+    @keyframes mutant-wobble {
+      0%,100% { transform: rotate(0deg); transform-origin: 50% 55%; }
+      50%     { transform: rotate(1.6deg); transform-origin: 48% 45%; }
+    }
+
+    /* ===== page layout ===== */
+    .remix { padding: 14px; }
+    .remix-controls { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+    .remix-controls .btn, .remix-controls input, .remix-controls select { font-size:.9rem; }
+    /* sane grid so you see more than one tile per row */
+    #remixGallery { display:grid; grid-template-columns:repeat(auto-fill, minmax(240px,1fr)); gap:10px; }
+    .btn{border:1px solid var(--line); border-radius:999px; padding:8px 12px; background:#030303}
+  </style>
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="index.html">CHAOS™</a>
+  <nav class="site-nav">
+    <a href="overload.html">Overload</a>
+    <a href="bots.html">Bots</a>
+    <a href="recompile.html">Recompile</a>
+    <a href="corpse.html">Corpse</a>
+    <a href="errors.html">Errors</a>
+    <a href="chopshop.html">Chop Shop</a>
+    <a href="remix.html" aria-current="page">Remix</a>
+  </nav>
+</header>
+
+<main class="remix">
+  <h2 class="center glitch" data-text="CUT / MIX / RECOMPOSE">CUT / MIX / RECOMPOSE</h2>
+  <section class="panel" style="margin-top:12px">
+    <div class="remix-controls mono tiny">
+      <button id="remixShuffle" class="btn">Remix</button>
+      <button id="curateAI" class="btn">Curate by AI</button>
+      <button id="groupTheme" class="btn">Group by Theme</button>
+      <button id="mergeBtn" class="btn">Merge Composite</button>
+      <span id="remixStatus" class="tiny mono"></span>
+    </div>
+    <div id="remixGallery" class="grid"></div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="site-header"><span class="mono">Everything is a remix · live cut-ups from your dataset</span></div>
+</footer>
+
+<!-- Inline manifest with metadata (palette, themes, mood, features). -->
+<script id="manifest" type="application/json">
+{
+  "media": [
+    {
+      "src": "assets/media/items/10.jpg",
+      "title": "Machine Dream 10",
+      "author": "unknown",
+      "date": "2023-07-01",
+      "tags": ["jpeg","dataset","train","remix"],
+      "themes": ["machine-dream","synthetic-memory","cool"],
+      "source": "local",
+      "width": null, "height": null,
+      "entropyHint": 0.72, "avgBrightnessHint": 0.58, "dominantHueHint": 210,
+      "palette": ["#0E1A2B","#1F3B5A","#3E6EA8","#7FB2FF","#CFE7FF"],
+      "mood": { "value": 0.62, "label": "wistful" },
+      "features": [0.12,0.38,0.05,0.71,0.44,0.23,0.59,0.18],
+      "checksum": "sha1:f7a1-10", "nsfw": false, "notes": "Soft gradients; mid noise."
+    },
+    {
+      "src": "assets/media/items/360.jpg",
+      "title": "Scrambled Source 360",
+      "author": "scraper-bot",
+      "date": "2022-11-19",
+      "tags": ["jpeg","collage","sample"],
+      "themes": ["warm-noise","artifact","remix"],
+      "source": "local",
+      "width": null, "height": null,
+      "entropyHint": 0.45, "avgBrightnessHint": 0.64, "dominantHueHint": 34,
+      "palette": ["#2B1A0E","#5A3B1F","#A86E3E","#FFB27F","#FFE7CF"],
+      "mood": { "value": 0.41, "label": "buoyant" },
+      "features": [0.33,0.11,0.57,0.26,0.19,0.65,0.22,0.47],
+      "checksum": "sha1:b2f0-360", "nsfw": false, "notes": "Blocky compression; warm bias."
+    },
+    {
+      "src": "assets/media/items/20.jpg",
+      "title": "Residual Memory 20",
+      "author": "unknown",
+      "date": "2023-01-05",
+      "tags": ["jpeg","artifact","dataset"],
+      "themes": ["magenta-cast","echo","afterimage"],
+      "source": "local",
+      "width": null, "height": null,
+      "entropyHint": 0.61, "avgBrightnessHint": 0.42, "dominantHueHint": 286,
+      "palette": ["#240A2B","#50155A","#8E2AA8","#C76BDB","#F2C7FF"],
+      "mood": { "value": 0.54, "label": "haunted" },
+      "features": [0.48,0.29,0.17,0.62,0.73,0.21,0.35,0.28],
+      "checksum": "sha1:9ad0-20", "nsfw": false, "notes": "Magenta cast; mid contrast."
+    },
+    {
+      "src": "assets/media/items/80.jpg",
+      "title": "Quiet Noise 80",
+      "author": "unknown",
+      "date": "2023-03-14",
+      "tags": ["jpeg","lowlight","grain"],
+      "themes": ["nocturne","lofi","blue-shift"],
+      "source": "local",
+      "width": null, "height": null,
+      "entropyHint": 0.37, "avgBrightnessHint": 0.28, "dominantHueHint": 190,
+      "palette": ["#0B1C26","#123747","#1B556A","#2D7D9F","#84C9E6"],
+      "mood": { "value": 0.29, "label": "low" },
+      "features": [0.09,0.14,0.21,0.18,0.32,0.27,0.11,0.08],
+      "checksum": "sha1:1c80-80", "nsfw": false, "notes": "Dark tones; cool palette."
+    },
+    {
+      "src": "assets/media/items/110.jpg",
+      "title": "Edge Case 110",
+      "author": "unknown",
+      "date": "2023-05-22",
+      "tags": ["jpeg","edge","glitch"],
+      "themes": ["edge-detect","neon-green","static"],
+      "source": "local",
+      "width": null, "height": null,
+      "entropyHint": 0.69, "avgBrightnessHint": 0.51, "dominantHueHint": 158,
+      "palette": ["#0B241C","#135A45","#1FAA7D","#4DE7B4","#B9FFE9"],
+      "mood": { "value": 0.66, "label": "electric" },
+      "features": [0.61,0.23,0.49,0.72,0.38,0.57,0.44,0.33],
+      "checksum": "sha1:3b11-110", "nsfw": false, "notes": "Chroma noise; green bias."
+    },
+    {
+      "src": "assets/media/items/140.jpg",
+      "title": "Color Study 140",
+      "author": "unknown",
+      "date": "2023-08-09",
+      "tags": ["jpeg","study","palette"],
+      "themes": ["sun-tilt","bright","citrus"],
+      "source": "local",
+      "width": null, "height": null,
+      "entropyHint": 0.54, "avgBrightnessHint": 0.66, "dominantHueHint": 24,
+      "palette": ["#2B1708","#5A3212","#A86824","#FFB364","#FFE2C0"],
+      "mood": { "value": 0.58, "label": "glow" },
+      "features": [0.27,0.44,0.18,0.39,0.58,0.46,0.21,0.52],
+      "checksum": "sha1:5d14-140", "nsfw": false, "notes": "High brightness; orange tilt."
+    },
+    {
+      "src": "assets/media/items/150.jpg",
+      "title": "Compression Bloom 150",
+      "author": "unknown",
+      "date": "2022-12-12",
+      "tags": ["jpg","artifact","bloom"],
+      "themes": ["purple-bloom","macroblock","overfit"],
+      "source": "local",
+      "width": null, "height": null,
+      "entropyHint": 0.76, "avgBrightnessHint": 0.62, "dominantHueHint": 300,
+      "palette": ["#210B2B","#42155A","#7E2AA8","#C36BDB","#EBC7FF"],
+      "mood": { "value": 0.71, "label": "feverish" },
+      "features": [0.73,0.51,0.26,0.64,0.82,0.33,0.47,0.55],
+      "checksum": "sha1:7a15-150", "nsfw": false, "notes": "Macroblocks; purple bias."
+    },
+    {
+      "src": "assets/media/items/160.jpg",
+      "title": "Signal Loss 160",
+      "author": "unknown",
+      "date": "2023-02-28",
+      "tags": ["jpeg","signal","loss"],
+      "themes": ["cold-fade","dim","underexposed"],
+      "source": "local",
+      "width": null, "height": null,
+      "entropyHint": 0.31, "avgBrightnessHint": 0.35, "dominantHueHint": 205,
+      "palette": ["#0A151C","#142A37","#224454","#32627A","#7BA8C4"],
+      "mood": { "value": 0.32, "label": "numb" },
+      "features": [0.18,0.22,0.09,0.27,0.34,0.16,0.12,0.24],
+      "checksum": "sha1:8c16-160", "nsfw": false, "notes": "Cool, dim, low variety."
+    },
+    {
+      "src": "assets/media/items/170.jpg",
+      "title": "Dataset Ghost 170",
+      "author": "unknown",
+      "date": "2023-09-30",
+      "tags": ["jpg","ghost","dataset"],
+      "themes": ["warm-ghost","texture","noisefield"],
+      "source": "local",
+      "width": null, "height": null,
+      "entropyHint": 0.83, "avgBrightnessHint": 0.47, "dominantHueHint": 12,
+      "palette": ["#2B0E0E","#5A1F1A","#A83E2E","#FF7F6B","#FFD0C6"],
+      "mood": { "value": 0.77, "label": "feral" },
+      "features": [0.81,0.36,0.58,0.44,0.63,0.52,0.69,0.31],
+      "checksum": "sha1:9e17-170", "nsfw": false, "notes": "High texture; warm red bias."
+    }
+  ]
+}
+</script>
+
+<!-- Your engine must be the metadata-aware version we discussed -->
+<script src="assets/js/remix.js"></script>
+</body>
+</html>

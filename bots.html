@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <header class="site-header">
+      <a class="brand" href="index.html">CHAOS™</a>
+      <nav class="site-nav">
+        <a href="overload.html">Overload</a>
+        <a href="bots.html">Bots</a>
+        <a href="recompile.html">Recompile</a>
+        <a href="corpse.html">Corpse</a>
+        <a href="errors.html">Errors</a>
+        <a href="chop_shop.html">CHOP SHOP</a>
+        <a href="remix.html">REMIX</a>
+      </nav>
+    </header>
+  <meta charset="utf-8" />
+  <title>Bots — Chaos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Drop TikTok/YouTube/Reddit comment exports and explore how bots shape discourse." />
+  <meta property="og:title" content="Bots — Chaos" />
+  <meta property="og:description" content="Load comment datasets and analyze bot-like behaviors." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://yourdomain.example/bots.html" />
+  <meta property="og:image" content="https://yourdomain.example/assets/media/preview.png" />
+  <link rel="stylesheet" href="assets/css/chaos.css" />
+</head>
+<body>
+
+<div data-include="header"></div>
+<div class="layer scanlines" aria-hidden="true"></div>
+<div class="overlay" aria-hidden="true"></div>
+
+
+<!-- add files to /assets/media/items -->
+<main>
+  <noscript><p class="mono tiny center">JavaScript is required to load and analyze files.</p></noscript>
+  <h2 class="center glitch" data-text="EVERYTHING IS A BOT">EVERYTHING IS A BOT</h2>
+  
+  <section class="ingestbar">
+    <div class="dropzone" id="dropzone">
+      <strong>Drop TikTok CSV/JSON or YouTube comments JSON here</strong>
+      <span class="tiny mono">or</span>
+      <label for="fileInput" class="btn">Choose file</label>
+      <input type="file" id="fileInput" accept=".csv,.json" hidden />
+      <button id="loadBuiltin" class="btn">Load saved JSON</button>
+      <span class="tiny mono">/assets/data/tiktok_comments.json</span>
+      <div id="loadStatus" class="tiny mono" role="status" aria-live="polite"></div>
+    </div>
+    <div class="filters mono tiny">
+      <label>Source:
+        <select id="sourceFilter">
+          <option value="any">any</option>
+          <option value="tiktok">tiktok</option>
+          <option value="youtube">youtube</option>
+          <option value="reddit">reddit</option>
+          <option value="x">x</option>
+          <option value="generated">generated</option>
+        </select>
+      </label>
+    </div>
+  </section>
+  <div id="botFeed" class="grid" aria-live="polite"></div>
+        
+</main>
+<script defer src="assets/js/ingest.js"></script>
+<script defer src="assets/js/bots.js"></script>
+
+<div data-include="footer"></div>
+<script defer src="assets/js/media.js"></script>
+<script defer src="assets/js/chaos.js"></script>
+<script defer src="assets/js/chat.js"></script>
+<script defer src="assets/js/includes.js"></script>
+</body>
+</html>
